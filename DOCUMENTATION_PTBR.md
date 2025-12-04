@@ -44,49 +44,52 @@ Cada configuração é treinada integralmente usando a função `train_evaluate`
 
 ### Visualizações e análise de resultados
 
-Duas formas de visualização foram empregadas. Primeiramente, curvas de aprendizado mostram a recompensa bruta por episódio (com transparência) e a média móvel de 25 episódios (em linha mais espessa), permitindo visualizar tanto as flutuações quanto a tendência de convergência. Secundamente, gráficos de barras comparativos relacionam valores específicos de hiperparâmetros (como `replay_buffer_size`, `learning_rate`, `num_episodes`) ao desempenho final, facilitando a identificação de configurações mais efetivas.
+Duas formas de visualização foram empregadas. Primeiramente, curvas de aprendizado mostram a recompensa bruta por episódio (com transparência) e a média móvel de 25 episódios (em linha mais espessa), permitindo visualizar tanto as flutuações quanto a tendência de convergência.
 
 As análises revelaram padrões interessantes no comportamento do agente. Buffers de replay muito pequenos (2.000 transições) resultaram em desempenho pobre, sugerindo que a diversidade limitada de experiências prejudica a generalização. Conforme o tamanho do buffer aumenta para 10.000, o desempenho melhora significativamente e estabiliza; buffers ainda maiores (30.000+) oferecem ganhos marginais ou até degradação por aumento de latência na atualização de pesos. Isso sugere um ponto de equilíbrio ótimo em torno de 10.000 transições para este problema específico.
 
-todo: inserir imagem de gráfico aqui
+todo: inserir imagem de gráfico aqui buffer replay test
 
 Em relação à taxa de aprendizado, 5e-4 emergiu como um valor equilibrado. Taxas mais altas (5e-3) causaram instabilidade nas curvas de aprendizado, com grandes picos e depressões nos episódios finais, indicando que o agente "desaprendia" periodicamente. Taxas mais baixas (5e-5) tornavam o aprendizado extremamente lento, exigindo significativamente mais episódios para atingir performance comparável. O fator de desconto (gamma) também teve impacto pronunciado, com 0.99 sendo preferível a 0.9 em cenários de treinamento mais longo.
 
-todo: inserir imagem de gráfico aqui
+todo: inserir imagem de gráfico aqui lr-and-gamma
 
-o comportamento observado em relação ao número de episódios foi esperado: mais episódios geralmente levaram a melhor desempenho, mas com retornos decrescentes. Treinamentos com apenas 500 episódios raramente alcançaram recompensas médias positivas, enquanto 1.000 episódios frequentemente resultaram em recompensas médias em torno de 100–150. A extensão para 2.000 episódios permitiu que o agente atingisse recompensas médias superiores a 200 em muitas configurações, indicando pousos bem-sucedidos consistentes.
-
-todo: inserir imagem de gráfico aqui
-
-o comportamento do agente observado no ambiente mostra que, no inicio bate, depois fica parado, e ao explorar, descobre que pousar suavemente na plataforma rende recompensas maiores. A política epsilon-greedy com decaimento gradual permitiu que o agente explorasse suficientemente no início, descobrindo estratégias eficazes antes de se tornar mais guloso.
-
-Os parâmetros de exploração (epsilon) também foram críticos. Decays muito rápidos (ex: 0.95 por episódio) causavam que epsilon caísse próximo a zero em poucos episódios, forçando comportamento guloso cedo demais e impedindo descoberta adequada. Um decay mais moderado (0.992) permitia exploração contínua por mais tempo, resultando em melhores resultados finais. O valor de `epsilon_end` (0.01 ou 0.1) teve efeito menor, mas manter um nível mínimo de exploração (1%) mostrou-se benéfico mesmo em estágios avançados do treinamento.
+o comportamento observado em relação ao número de episódios foi o esperado: mais episódios geralmente levaram a melhor desempenho. Treinamentos com apenas 500 episódios raramente alcançaram recompensas médias positivas, enquanto 1.000 episódios frequentemente resultaram em recompensas médias em torno de 100–150. A extensão para 2.000 episódios permitiu que o agente atingisse recompensas médias superiores a 200 em muitas configurações, porém ainda com algumas quedas bruscas, que tendem a ficar cada vez menores com a execução de mais episódios.
 
 todo: inserir imagem de gráfico aqui
 
-A frequência de atualização da rede alvo também apresentou um padrão. Atualizações muito frequentes (a cada episódio) causavam instabilidade pois a rede alvo mudava frequentemente, enquanto atualizações muito esparsas (a cada 20+ episódios) resultavam em alvo desatualizado. Valores intermediários (7–12 episódios) ofereceram o melhor equilíbrio, sincronizando o alvo frequentemente o suficiente para refletir aprendizado, mas com espaçamento bastante para estabilidade.
+O comportamento do agente observado no ambiente mostra que, no inicio, o agente não tem nenhum controle sobre a nave, e acaba batendo. Depois de algum treinamento, o agente aprende a manter o controle da nave, mas tende a ficar parado no ar até o fim do episódio. Conforme mais treinamento é feito e novas ações exploradas, ele finalmente descobre que pousar suavemente na plataforma rende recompensas maiores. A política epsilon-greedy com decaimento gradual permitiu que o agente explorasse suficientemente de se tornar mais guloso.
+
+Os parâmetros de exploração (epsilon) também foram críticos. Decays muito rápidos (ex: 0.95 por episódio) causavam que epsilon caísse próximo a zero em poucos episódios, forçando comportamento guloso cedo demais e impedindo descoberta adequada. Um decay mais moderado (0.99) permitia exploração contínua por mais tempo, resultando em melhores resultados finais. O valor de `epsilon_end` (0.01 ou 0.1) teve efeito menor, mas manter um nível mínimo de exploração (1%) mostrou-se benéfico em estágios avançados do treinamento.
+
+todo: inserir imagem de gráfico aqui
+
+A frequência de atualização da rede alvo também apresentou um padrão. Atualizações muito frequentes (ex: a cada episódio) causavam instabilidade pois a rede alvo mudava frequentemente, enquanto atualizações muito esparsas (a cada 16+ episódios) resultavam em alvo desatualizado. Valores intermediários (6–8 episódios) ofereceram o melhor equilíbrio, sincronizando o alvo frequentemente o suficiente para refletir aprendizado, mas com espaçamento bastante para estabilidade.
 
 ### Comparação com Stable Baselines 3
 
-O notebook inclui uma seção dedicada a treinamento de um agente DQN usando a implementação pronta do Stable Baselines 3 (SB3). Um modelo foi treinado com 200.000 timesteps (aproximadamente 2.000 episódios em comparação razoável) e avaliado usando `evaluate_policy` com 10 episódios de teste. O modelo foi salvo e posteriormente carregado para análise.
+O notebook inclui uma seção dedicada a treinamento de um agente DQN usando a implementação pronta do Stable Baselines 3 (SB3). Um modelo foi treinado com 1.200.000 timesteps (aproximadamente 2.000 episódios em comparação razoável) e avaliado usando `evaluate_policy`. O modelo foi salvo e posteriormente carregado para análise.
+
+todo: atualizar bloco anterior e colocar resultados do sb3
 
 As diferenças de desempenho observadas entre nossa implementação e o SB3 podem ser atribuídas a múltiplos fatores. Primeiro, SB3 implementa otimizações internas sofisticadas que não estão presentes em nossa versão didática. Isso inclui vetorização de ambientes (múltiplas instâncias paralelas), normalização automática de observações e recompensas, clipping de gradiente, schedules adaptativos de learning rate e epsilon, e implementações eficientes em C++ de componentes críticos. Segunda, a estrutura interna de SB3 foi refinada através de muita pesquisa e feedback da comunidade, incorporando best practices que evitam armadilhas comuns. Terceira, documentação e defaults foram ajustados para funcionar bem em uma ampla variedade de ambientes, enquanto nossa implementação foi otimizada especificamente para LunarLander-v3.
 
-Apesar dessas diferenças, observamos que com ajuste cuidadoso de hiperparâmetros e tempo de treinamento suficiente, nossa implementação foi capaz de atingir desempenho comparável ao SB3 em muitos cenários. Isso valida que os componentes fundamentais do DQN foram corretamente implementados e que a lacuna de desempenho é principalmente devida a otimizações e refinamentos, não a falhas conceituais. Em aplicações reais, SB3 seria a escolha recomendada pela robustez e eficiência; este exercício, porém, demonstra a viabilidade de implementar DQN do zero com resultados satisfatórios.
+Apesar dessas diferenças, observamos que com ajuste cuidadoso de hiperparâmetros e tempo de treinamento suficiente, nossa implementação foi capaz de atingir desempenho comparável ao SB3 em muitos cenários. Isso valida que os componentes fundamentais do DQN foram corretamente implementados e que a lacuna de desempenho é principalmente devida a otimizações e refinamentos.
 
 ### Metodologia de busca por hiperparâmetros
 
 A estratégia empregada é grid search convencional: usando `itertools.product`, geramos todas as combinações possíveis dos hiperparâmetros testados, e cada uma é treinada e avaliada sequencialmente. Os resultados são coletados em uma lista de tuplas (configuração, score) e posteriormente convertidos para `pandas.DataFrame` facilitando análise.
 
-Embora simples de implementar e compreender, grid search é computacionalmente custoso, especialmente conforme o número de hiperparâmetros e seus valores aumenta. O tempo total de treinamento cresce exponencialmente com o número de dimensões. Para projetos futuros com mais hiperparâmetros a afinar, recomendamos alternativas mais eficientes como Random Search (que amostra configurações aleatoriamente e muitas vezes encontra boas soluções com menos avaliações), Bayesian Optimization (que modela a relação entre hiperparâmetros e desempenho e explora de forma inteligente), ou ferramentas especializadas como Optuna ou Ray Tune que implementam algoritmos state-of-the-art para busca por hiperparâmetros.
+Embora simples de implementar e compreender, grid search é computacionalmente custoso, especialmente conforme o número de hiperparâmetros e seus valores aumenta. O tempo total de treinamento cresce exponencialmente com o número de dimensões. 
+
 
 ## Conclusão
 
 ### Resultados principais alcançados
 
-Este trabalho demonstrou com sucesso a implementação de um agente DQN capaz de aprender a resolver o ambiente LunarLander-v3 com razoável eficiência. Entre as descobertas principais, destaca-se que configurações com replay buffer de aproximadamente 10.000 transições, batch size de 32, taxa de aprendizado em torno de 5e-4 e epsilon decay próximo de 0.992 produzem resultados robustos. Quando bem configurado, o agente consegue atingir recompensas médias (últimos 100 episódios) que indicam pouso bem-sucedido em uma porcentagem significativa dos testes após 1.000–2.000 episódios de treinamento.
+O notebook demonstrou com sucesso a implementação de um agente DQN capaz de aprender a resolver o ambiente LunarLander-v3 com razoável eficiência. Entre as descobertas principais, destaca-se que configurações com replay buffer de aproximadamente 10.000 transições, batch size de 32, taxa de aprendizado em torno de 5e-4 e epsilon decay próximo de 0.992 produzem resultados robustos. Quando bem configurado, o agente consegue atingir recompensas médias (últimos 100 episódios) que levam a pouso bem-sucedido em uma porcentagem significativa dos testes após 1.000–2.000 episódios de treinamento.
 
-Adicionalmente, a comparação com o Stable Baselines 3 revelou que ambas as abordagens são viáveis. Enquanto SB3 oferece convergência mais rápida e resultados mais estáveis graças a otimizações internas, a implementação do zero mostrou que os princípios fundamentais do DQN foram corretamente compreendidos e implementados. Isso sugere que implementações didáticas como essa têm valor educacional significativo para aprender aprendizado por reforço profundo, ainda que em produção se recomende utilizar bibliotecas maduras e otimizadas.
+Adicionalmente, a comparação com o Stable Baselines 3 revelou que ambas as abordagens são viáveis. Enquanto SB3 oferece convergência mais rápida e resultados mais estáveis graças a otimizações internas, a implementação do zero mostrou que os princípios fundamentais do DQN foram corretamente implementados.
 
 ### Limitações reconhecidas
 
